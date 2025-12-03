@@ -89,15 +89,18 @@ Key response fields:
 - `fuel_plan.summary`: total gallons, total cost (if prices are known), and per-segment fuel math
 
 ## How it works
-- Mapbox Directions gives one route/geometry; we also expose a static map URL that draws the route and fuel stops.
-- Fuel prices come from `fuel-prices-for-be-assessment.csv`. Coordinates for stations are cached in `data/station_cache.json`.
-- For each 0, 500, 1000... mile marker we look for the cheapest station within `station_radius_miles` of that point. If coordinates are missing we optionally geocode the station (budgeted by `geocode_budget_per_stop`) and persist the result. If nothing is nearby, we fall back to the cheapest station with known coordinates.
-- Fuel cost is computed per leg using the price at the stop that precedes the leg.
+- One Mapbox Directions call yields the route geometry; we expose a static map URL that draws the route plus start/end/stops pins.
+- Fuel prices come from `fuel-prices-for-be-assessment.csv` (deduped per station, keeping lowest price).
+- For each 0, 500, 1000... mile marker:
+  - Reverse geocode to get city/state (if enabled).
+  - Pull stations in that city/state (or state) and geocode only those (address → city+state → city → state) with state matching; cached in-process.
+  - Choose the cheapest within `station_radius_miles`; fallbacks: nearest in-state, nearest to marker, nearest along the route.
+- Fuel cost per leg uses the price at the stop before that leg; totals are summed across legs.
 
 ## 📝 Notes & Tips
 
-- **First Run**: Keep `allow_station_geocoding: true` to build the station cache
-- **Subsequent Runs**: Disable geocoding to avoid unnecessary Mapbox API calls
+- **Fast responses**: Geocoding is targeted to stations near each marker and cached in-process; Directions is one call per request.
+- **Defaults**: 500 mile range, 10 mpg; adjust via payload.
 - **Django Version**: Currently using Django 4.2.x. To upgrade to Django 5.x, update `requirements.txt`
 - **Development**: For local development, you can use the included `.env.example` as a template
 
