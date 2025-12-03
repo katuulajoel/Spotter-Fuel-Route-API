@@ -77,9 +77,7 @@ curl -X POST http://localhost:8000/api/route/ \
     "end": "Chicago, IL",
     "range_miles": 500,
     "mpg": 10,
-    "station_radius_miles": 50,
-    "allow_station_geocoding": true,
-    "geocode_budget_per_stop": 12
+    "station_radius_miles": 50
   }'
 ```
 
