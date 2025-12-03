@@ -54,8 +54,6 @@ class StationLocator:
             if coords:
                 station.coordinates = coords
                 self._session_coords[station.cache_key] = coords
-                if self.cache:
-                    self.cache.set(station.cache_key, coords)
                 return coords, True
 
         return None, True
