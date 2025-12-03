@@ -1,0 +1,45 @@
+{
+  "info": {
+    "_postman_id": "0d6e5b2f-ec12-44f1-81a4-245c9c932a90",
+    "name": "Spotter Fuel Route API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Call the Django fuel route planner. Update base_url/env as needed."
+  },
+  "item": [
+    {
+      "name": "Plan route with fuel stops",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": \"New York, NY\",\n  \"end\": \"Boston, MA\",\n  \"range_miles\": 500,\n  \"mpg\": 10,\n  \"station_radius_miles\": 50,\n  \"allow_station_geocoding\": true,\n  \"geocode_budget_per_stop\": 12\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/route/",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "route",
+            ""
+          ]
+        },
+        "description": "Computes a route via Mapbox and suggests cheapest nearby fuel stops. Requires MAPBOX_ACCESS_TOKEN or MAPBOX_TOKEN in the backend environment."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000"
+    }
+  ]
+}
