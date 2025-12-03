@@ -49,9 +49,6 @@ Plan a driving route in the US, pick fuel stops with the lowest available prices
 5. **(Optional) Configure custom paths**
    ```bash
    export FUEL_DATA_PATH=/path/to/fuel_data.csv
-   export STATION_CACHE_PATH=/path/to/station_cache.json
-   export PRELOAD_STATIONS_ON_START=true           # pre-geocode on startup
-   export PRELOAD_STATION_LIMIT=200                # how many stations to geocode at boot
    ```
 
 ## 🚦 Running the Application

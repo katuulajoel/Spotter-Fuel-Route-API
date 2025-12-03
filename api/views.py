@@ -7,7 +7,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
-from .fuel_data import StationCache, load_fuel_stations, index_by_city_state, index_by_state
+from .fuel_data import load_fuel_stations, index_by_city_state, index_by_state
 from .fuel_optimizer import FuelPlanner
 from .mapbox_client import MapboxClient, MapboxClientError
 from .station_locator import StationLocator
@@ -100,8 +100,7 @@ class RoutePlanningView(View):
 
         geometry = route["geometry"]
         route_distance_miles = route["distance"] / 1609.344
-        cache = None  # disable persistent cache per request
-        stations = load_fuel_stations(cache=cache)
+        stations = load_fuel_stations()
         stations = _filter_stations_by_bbox(
             stations, geometry.get("coordinates", []), margin_miles=radius + 100
         )
@@ -109,7 +108,6 @@ class RoutePlanningView(View):
         state_index = index_by_state(stations)
         locator = StationLocator(
             stations,
-            cache,
             mapbox,
             city_state_index=station_index,
             state_index=state_index,

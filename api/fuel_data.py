@@ -1,5 +1,4 @@
 import csv
-import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
@@ -23,41 +22,7 @@ class FuelStation:
         self.cache_key = f"{self.opis_id}-{self.address}-{self.city}-{self.state}"
 
 
-class StationCache:
-    def __init__(self, path: str):
-        self.path = Path(path)
-        self._data: Dict[str, Tuple[float, float]] = {}
-        self._loaded = False
-
-    def load(self):
-        if self._loaded:
-            return
-        if self.path.exists():
-            try:
-                with open(self.path) as fp:
-                    self._data = json.load(fp)
-            except json.JSONDecodeError:
-                # Corrupt cache; reset.
-                self._data = {}
-        self._loaded = True
-
-    def save(self):
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.path, "w") as fp:
-            json.dump(self._data, fp)
-
-    def get(self, cache_key: str) -> Optional[Tuple[float, float]]:
-        self.load()
-        coords = self._data.get(cache_key)
-        return tuple(coords) if coords else None
-
-    def set(self, cache_key: str, coords: Tuple[float, float]):
-        self.load()
-        self._data[cache_key] = coords
-        self.save()
-
-
-def load_fuel_stations(path: Optional[str] = None, cache: Optional[StationCache] = None) -> List[FuelStation]:
+def load_fuel_stations(path: Optional[str] = None) -> List[FuelStation]:
     csv_path = Path(path or settings.FUEL_DATA_PATH)
     if not csv_path.exists():
         raise FileNotFoundError(f"Fuel data file not found at {csv_path}")

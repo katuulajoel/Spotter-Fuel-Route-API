@@ -129,16 +129,5 @@ MAPBOX_ACCESS_TOKEN = os.getenv("MAPBOX_ACCESS_TOKEN") or os.getenv("MAPBOX_TOKE
 FUEL_DATA_PATH = os.getenv(
     "FUEL_DATA_PATH", str(BASE_DIR / "fuel-prices-for-be-assessment.csv")
 )
-STATION_CACHE_PATH = os.getenv(
-    "STATION_CACHE_PATH", str(BASE_DIR / "data" / "station_cache.json")
-)
 DEFAULT_RANGE_MILES = float(os.getenv("DEFAULT_RANGE_MILES", "500"))
 DEFAULT_MPG = float(os.getenv("DEFAULT_MPG", "10"))
-
-# Optional preload to geocode stations on startup (to avoid per-request warm-up)
-PRELOAD_STATIONS_ON_START = os.getenv("PRELOAD_STATIONS_ON_START", "false").lower() in (
-    "1",
-    "true",
-    "yes",
-)
-PRELOAD_STATION_LIMIT = int(os.getenv("PRELOAD_STATION_LIMIT", "200"))

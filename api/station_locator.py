@@ -2,7 +2,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 from .geometry import haversine_miles
 from .mapbox_client import MapboxClient
-from .fuel_data import FuelStation, StationCache, stations_sorted_by_price
+from .fuel_data import FuelStation, stations_sorted_by_price
 from .geometry import nearest_point_distance_miles
 from math import inf
 from itertools import islice
@@ -12,7 +12,6 @@ class StationLocator:
     def __init__(
         self,
         stations: Iterable[FuelStation],
-        cache: Optional[StationCache],
         mapbox_client: MapboxClient,
         city_state_index: Optional[Dict[str, List[FuelStation]]] = None,
         state_index: Optional[Dict[str, List[FuelStation]]] = None,
@@ -21,7 +20,6 @@ class StationLocator:
         self.sorted_by_price = stations_sorted_by_price(self.stations)
         self.city_state_index = city_state_index or {}
         self.state_index = state_index or {}
-        self.cache = cache
         self.mapbox = mapbox_client
         self._session_coords: Dict[str, Tuple[float, float]] = {}
 
@@ -37,12 +35,6 @@ class StationLocator:
             coords = self._session_coords[station.cache_key]
             station.coordinates = coords
             return coords, False
-        if self.cache:
-            cached = self.cache.get(station.cache_key)
-            if cached:
-                station.coordinates = cached
-                self._session_coords[station.cache_key] = cached
-                return cached, False
         if not allow_geocode:
             return None, False
         # Try multiple queries to disambiguate similarly named cities/states.
