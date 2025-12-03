@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 from .geometry import accumulate_distances_miles, interpolate_point, nearest_point_distance_miles, downsample_polyline
+from .geometry import haversine_miles
 from .fuel_data import FuelStation
 from .station_locator import StationLocator
 from .mapbox_client import MapboxClient
@@ -70,18 +71,20 @@ class FuelPlanner:
             if self.use_reverse_geocoding:
                 try:
                     city_state = self.mapbox.reverse_geocode(coord[0], coord[1])
-                    print(f"[marker {mile_marker:.2f}] reverse geocode -> {city_state}")
+                    print(f"[marker {mile_marker:.2f}] reverse geocode -> {city_state}", flush=True)
                 except Exception as exc:
                     city_state = None
-                    print(f"[marker {mile_marker:.2f}] reverse geocode failed: {exc}")
+                    print(f"[marker {mile_marker:.2f}] reverse geocode failed: {exc}", flush=True)
                 if city_state:
                     candidates = self.locator.stations_for_city_state(
                         city_state.get("city"), city_state.get("state")
                     )
+                    print(f"[marker {mile_marker:.2f}] city/state candidates: {len(candidates)}", flush=True)
                     if not candidates:
                         candidates = self.locator.stations_for_state(city_state.get("state"))
                         if candidates:
-                            print(f"[marker {mile_marker:.2f}] falling back to state-only stations")
+                            print(f"[marker {mile_marker:.2f}] falling back to state-only stations", flush=True)
+                        print(f"[marker {mile_marker:.2f}] state candidates: {len(candidates)}", flush=True)
 
             station = self.locator.cheapest_nearby(
                 coord,
@@ -91,12 +94,35 @@ class FuelPlanner:
                 candidates=candidates,
             )
             note = None
+            if station is None and candidates:
+                # Try nearest within state candidates even if not the cheapest, with a wider but capped radius.
+                nearest_state = None
+                nearest_state_dist = float("inf")
+                for cand in candidates:
+                    coords = cand.coordinates
+                    if not coords:
+                        continue
+                    dist = haversine_miles(coords, coord)
+                    if dist < nearest_state_dist:
+                        nearest_state_dist = dist
+                        nearest_state = cand
+                if nearest_state and nearest_state_dist <= max(self.search_radius_miles * 2, 100):
+                    station = nearest_state
+                    note = f"Chose nearest station in state (dist ~{nearest_state_dist:.1f} mi) after city/state search."
             if station is None:
                 station = self.locator.nearest_to_point(coord)
                 note = "Fallback to nearest station to marker; no nearby city/state match with coords."
             if station is None:
                 station = self.locator.nearest_on_route(self._fallback_polyline)
                 note = note or "Fallback to nearest station along route; no nearby coordinates available."
+            if station and station.coordinates:
+                dist = haversine_miles(station.coordinates, coord)
+                print(
+                    f"[marker {mile_marker:.2f}] stop -> {station.name} ({station.city}, {station.state}) "
+                    f"price {station.retail_price} dist_to_marker_mi ~{dist:.1f}"
+                    ,
+                    flush=True,
+                )
             price = station.retail_price if station else None
             stops.append(
                 FuelStop(

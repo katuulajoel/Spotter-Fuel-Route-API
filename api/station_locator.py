@@ -45,24 +45,28 @@ class StationLocator:
                 return cached, False
         if not allow_geocode:
             return None, False
-        coords = self.mapbox.geocode(
-            f"{station.address}, {station.city}, {station.state}, USA"
-        )
-        if coords:
-            station.coordinates = coords
-            self._session_coords[station.cache_key] = coords
-            if self.cache:
-                self.cache.set(station.cache_key, coords)
-            return coords, True
+        # Try multiple queries to disambiguate similarly named cities/states.
+        # Prefer state-matching geocode to disambiguate similarly named cities.
+        queries = [
+            (f"{station.address}, {station.city}, {station.state}, USA", True),
+            (f"{station.city}, {station.state}, USA", True),
+            (f"{station.city}, USA", False),
+            (f"{station.state}, USA", False),
+        ]
+        for q, enforce_state in queries:
+            coords = (
+                self.mapbox.geocode_with_state(q, station.state)
+                if enforce_state
+                else self.mapbox.geocode(q)
+            )
+            if coords:
+                station.coordinates = coords
+                self._session_coords[station.cache_key] = coords
+                if self.cache:
+                    self.cache.set(station.cache_key, coords)
+                return coords, True
 
-        # Fallback: geocode city/state centroid if precise address failed.
-        centroid = self.mapbox.geocode(f"{station.city}, {station.state}, USA")
-        if centroid:
-            station.coordinates = centroid
-            self._session_coords[station.cache_key] = centroid
-            if self.cache:
-                self.cache.set(station.cache_key, centroid)
-        return centroid, True
+        return None, True
 
     def stations_for_city_state(self, city: Optional[str], state: Optional[str]) -> List[FuelStation]:
         if not city or not state:

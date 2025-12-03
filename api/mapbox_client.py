@@ -33,6 +33,29 @@ class MapboxClient:
         lon, lat = features[0]["center"]
         return (lat, lon)
 
+    def geocode_with_state(self, query: str, state: str, limit: int = 5) -> Optional[Tuple[float, float]]:
+        """
+        Geocode and ensure the returned feature's region short_code matches the requested state.
+        """
+        url = f"{self.BASE_URL}/geocoding/v5/mapbox.places/{quote(query)}.json"
+        params = {"access_token": self.access_token, "limit": limit, "country": "US"}
+        resp = requests.get(url, params=params, timeout=10)
+        if resp.status_code != 200:
+            return None
+        data = resp.json()
+        features = data.get("features") or []
+        state_upper = state.strip().upper()
+        for feat in features:
+            region = None
+            for ctx in feat.get("context", []):
+                if ctx.get("id", "").startswith("region.") and "short_code" in ctx:
+                    region = ctx["short_code"].split("-")[-1].upper()
+                    break
+            if region and region == state_upper:
+                lon, lat = feat["center"]
+                return (lat, lon)
+        return None
+
     def reverse_geocode(self, lat: float, lon: float, timeout: float = 5.0) -> Optional[Dict]:
         """
         Return a dict with city and state short code for a given coordinate.

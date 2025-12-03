@@ -18,3 +18,6 @@ db.sqlite3
 
 # Tooling
 *.log
+
+# Local caches
+data/
