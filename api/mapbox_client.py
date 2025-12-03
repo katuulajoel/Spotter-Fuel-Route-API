@@ -12,6 +12,8 @@ class MapboxClientError(Exception):
 
 class MapboxClient:
     BASE_URL = "https://api.mapbox.com"
+    _geocode_cache = {}
+    _reverse_cache = {}
 
     def __init__(self, access_token: Optional[str] = None):
         token = access_token or settings.MAPBOX_ACCESS_TOKEN
@@ -19,8 +21,19 @@ class MapboxClient:
             raise MapboxClientError("MAPBOX_ACCESS_TOKEN is not configured.")
         self.access_token = token
 
+    def _cache_key(self, query: str) -> str:
+        return query.strip().lower()
+
+    def _reverse_cache_key(self, lat: float, lon: float) -> str:
+        # round to ~11m precision to increase cache hits
+        return f"{round(lat,4)},{round(lon,4)}"
+
     def geocode(self, query: str) -> Optional[Tuple[float, float]]:
         """Returns (lat, lon) for a query or None if nothing is found."""
+        key = self._cache_key(query)
+        if key in self._geocode_cache:
+            return self._geocode_cache[key]
+
         url = f"{self.BASE_URL}/geocoding/v5/mapbox.places/{quote(query)}.json"
         params = {"access_token": self.access_token, "limit": 1, "country": "US"}
         response = requests.get(url, params=params, timeout=10)
@@ -31,12 +44,17 @@ class MapboxClient:
         if not features:
             return None
         lon, lat = features[0]["center"]
+        self._geocode_cache[key] = (lat, lon)
         return (lat, lon)
 
     def geocode_with_state(self, query: str, state: str, limit: int = 5) -> Optional[Tuple[float, float]]:
         """
         Geocode and ensure the returned feature's region short_code matches the requested state.
         """
+        cache_key = f"{self._cache_key(query)}|{state.strip().lower()}|{limit}"
+        if cache_key in self._geocode_cache:
+            return self._geocode_cache[cache_key]
+
         url = f"{self.BASE_URL}/geocoding/v5/mapbox.places/{quote(query)}.json"
         params = {"access_token": self.access_token, "limit": limit, "country": "US"}
         resp = requests.get(url, params=params, timeout=10)
@@ -53,6 +71,7 @@ class MapboxClient:
                     break
             if region and region == state_upper:
                 lon, lat = feat["center"]
+                self._geocode_cache[cache_key] = (lat, lon)
                 return (lat, lon)
         return None
 
@@ -61,6 +80,10 @@ class MapboxClient:
         Return a dict with city and state short code for a given coordinate.
         Example: {"city": "Bridgeport", "state": "MI"}
         """
+        cache_key = self._reverse_cache_key(lat, lon)
+        if cache_key in self._reverse_cache:
+            return self._reverse_cache[cache_key]
+
         url = f"{self.BASE_URL}/geocoding/v5/mapbox.places/{lon},{lat}.json"
         params = {
             "access_token": self.access_token,
@@ -86,7 +109,9 @@ class MapboxClient:
         if not city and feature.get("place_type") == ["region"]:
             city = feature.get("text")
         if city and state:
-            return {"city": city, "state": state}
+            result = {"city": city, "state": state}
+            self._reverse_cache[cache_key] = result
+            return result
         return None
 
     def directions(
