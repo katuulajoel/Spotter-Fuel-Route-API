@@ -76,12 +76,10 @@ class RoutePlanningView(View):
 
         start_raw = payload.get("start")
         end_raw = payload.get("end")
-        allow_station_geocoding = True
         vehicle_range = float(payload.get("range_miles", settings.DEFAULT_RANGE_MILES))
         mpg = float(payload.get("mpg", settings.DEFAULT_MPG))
         radius = float(payload.get("station_radius_miles", 50))
         geocode_budget = int(payload.get("geocode_budget_per_stop", 50))
-        use_reverse_geocoding = True
 
         if not start_raw or not end_raw:
             return JsonResponse({"error": "Both 'start' and 'end' are required."}, status=400)
@@ -121,9 +119,8 @@ class RoutePlanningView(View):
             search_radius_miles=radius,
             geocode_budget_per_stop=geocode_budget,
             explicit_distance_miles=route_distance_miles,
-            use_reverse_geocoding=use_reverse_geocoding,
         )
-        stops = planner.plan_stops(allow_station_geocoding=allow_station_geocoding)
+        stops = planner.plan_stops()
         summary = planner.cost_breakdown(stops)
 
         stop_points = [
@@ -152,7 +149,6 @@ class RoutePlanningView(View):
                 "vehicle_range_miles": vehicle_range,
                 "mpg": mpg,
                 "station_radius_miles": radius,
-                "allow_station_geocoding": allow_station_geocoding,
             },
         }
         return JsonResponse(response, status=200)

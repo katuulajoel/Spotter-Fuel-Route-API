@@ -41,7 +41,6 @@ class FuelPlanner:
         search_radius_miles: float = 50.0,
         geocode_budget_per_stop: int = 50,
         explicit_distance_miles: Optional[float] = None,
-        use_reverse_geocoding: bool = True,
     ):
         self.locator = locator
         self.mapbox = mapbox_client
@@ -50,7 +49,6 @@ class FuelPlanner:
         self.mpg = mpg
         self.search_radius_miles = search_radius_miles
         self.geocode_budget_per_stop = geocode_budget_per_stop
-        self.use_reverse_geocoding = use_reverse_geocoding
         self._coordinates = route_geometry["coordinates"]
         self._cumulative = accumulate_distances_miles(self._coordinates)
         self._fallback_polyline = downsample_polyline(self._coordinates, max_points=400)
@@ -61,35 +59,34 @@ class FuelPlanner:
     def _coordinate_at(self, mile_marker: float) -> Tuple[float, float]:
         return interpolate_point(self._coordinates, self._cumulative, mile_marker)
 
-    def plan_stops(self, allow_station_geocoding: bool) -> List[FuelStop]:
+    def plan_stops(self) -> List[FuelStop]:
         markers = build_mile_markers(self.total_distance_miles, self.vehicle_range_miles)
         stops: List[FuelStop] = []
         # We fuel at every marker except the destination.
         for mile_marker in markers[:-1]:
             coord = self._coordinate_at(mile_marker)
             candidates = []
-            if self.use_reverse_geocoding:
-                try:
-                    city_state = self.mapbox.reverse_geocode(coord[0], coord[1])
-                    print(f"[marker {mile_marker:.2f}] reverse geocode -> {city_state}", flush=True)
-                except Exception as exc:
-                    city_state = None
-                    print(f"[marker {mile_marker:.2f}] reverse geocode failed: {exc}", flush=True)
-                if city_state:
-                    candidates = self.locator.stations_for_city_state(
-                        city_state.get("city"), city_state.get("state")
-                    )
-                    print(f"[marker {mile_marker:.2f}] city/state candidates: {len(candidates)}", flush=True)
-                    if not candidates:
-                        candidates = self.locator.stations_for_state(city_state.get("state"))
-                        if candidates:
-                            print(f"[marker {mile_marker:.2f}] falling back to state-only stations", flush=True)
-                        print(f"[marker {mile_marker:.2f}] state candidates: {len(candidates)}", flush=True)
+            try:
+                city_state = self.mapbox.reverse_geocode(coord[0], coord[1])
+                print(f"[marker {mile_marker:.2f}] reverse geocode -> {city_state}", flush=True)
+            except Exception as exc:
+                city_state = None
+                print(f"[marker {mile_marker:.2f}] reverse geocode failed: {exc}", flush=True)
+            if city_state:
+                candidates = self.locator.stations_for_city_state(
+                    city_state.get("city"), city_state.get("state")
+                )
+                print(f"[marker {mile_marker:.2f}] city/state candidates: {len(candidates)}", flush=True)
+                if not candidates:
+                    candidates = self.locator.stations_for_state(city_state.get("state"))
+                    if candidates:
+                        print(f"[marker {mile_marker:.2f}] falling back to state-only stations", flush=True)
+                    print(f"[marker {mile_marker:.2f}] state candidates: {len(candidates)}", flush=True)
 
             station = self.locator.cheapest_nearby(
                 coord,
                 radius_miles=self.search_radius_miles,
-                allow_geocode=allow_station_geocoding,
+                allow_geocode=True,
                 geocode_budget=self.geocode_budget_per_stop,
                 candidates=candidates,
             )
